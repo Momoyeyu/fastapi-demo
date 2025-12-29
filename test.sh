@@ -14,6 +14,7 @@ export COVERAGE_FILE="$OUTPUT_DIR/.coverage"
 PYTEST_ARGS=(
   "src/tests"
   "-q"
+  "--cov=common"
   "--cov=user"
   "--cov=middleware"
   "--cov=conf"

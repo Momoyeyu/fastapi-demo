@@ -2,7 +2,7 @@ import hashlib
 
 import pytest
 
-from user import error
+from common import error
 from user import service
 
 
@@ -22,8 +22,9 @@ def test_get_password_hash_uses_salt(monkeypatch: pytest.MonkeyPatch):
 
 def test_register_user_when_user_exists(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(service, "get_user", lambda username: _User(id=1, username=username, password="x"), raising=True)
-    with pytest.raises(error.UserAlreadyExistsError):
+    with pytest.raises(error.BusinessError) as exc:
         service.register_user("alice", "pw")
+    assert exc.value.status_code == 409
 
 
 def test_register_user_success_hashes_password_and_calls_create(monkeypatch: pytest.MonkeyPatch):
@@ -49,8 +50,9 @@ def test_register_user_success_hashes_password_and_calls_create(monkeypatch: pyt
 def test_register_user_create_failed_returns_none(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(service, "get_user", lambda username: None, raising=True)
     monkeypatch.setattr(service, "create_user", lambda username, password: None, raising=True)
-    with pytest.raises(error.CreateUserFailedError):
+    with pytest.raises(error.BusinessError) as exc:
         service.register_user("alice", "pw")
+    assert exc.value.status_code == 500
 
 
 def test_register_user_create_failed_returns_user_without_id(monkeypatch: pytest.MonkeyPatch):
@@ -58,30 +60,34 @@ def test_register_user_create_failed_returns_user_without_id(monkeypatch: pytest
     monkeypatch.setattr(
         service, "create_user", lambda username, password: _User(id=None, username=username, password=password), raising=True
     )
-    with pytest.raises(error.CreateUserFailedError):
+    with pytest.raises(error.BusinessError) as exc:
         service.register_user("alice", "pw")
+    assert exc.value.status_code == 500
 
 
 def test_login_user_user_not_found(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(service, "get_user", lambda username: None, raising=True)
-    with pytest.raises(error.InvalidCredentialsError):
+    with pytest.raises(error.BusinessError) as exc:
         service.login_user("alice", "pw")
+    assert exc.value.status_code == 401
 
 
 def test_login_user_password_mismatch(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(service, "PASSWORD_SALT", "salt", raising=True)
     user = _User(id=1, username="alice", password=service.get_password_hash("correct"))
     monkeypatch.setattr(service, "get_user", lambda username: user, raising=True)
-    with pytest.raises(error.InvalidCredentialsError):
+    with pytest.raises(error.BusinessError) as exc:
         service.login_user("alice", "wrong")
+    assert exc.value.status_code == 401
 
 
 def test_login_user_user_without_id(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(service, "PASSWORD_SALT", "salt", raising=True)
     user = _User(id=None, username="alice", password=service.get_password_hash("pw"))
     monkeypatch.setattr(service, "get_user", lambda username: user, raising=True)
-    with pytest.raises(error.InvalidCredentialsError):
+    with pytest.raises(error.BusinessError) as exc:
         service.login_user("alice", "pw")
+    assert exc.value.status_code == 401
 
 
 def test_login_user_success_creates_token(monkeypatch: pytest.MonkeyPatch):
@@ -100,4 +106,3 @@ def test_login_user_success_creates_token(monkeypatch: pytest.MonkeyPatch):
     token = service.login_user("alice", "pw")
     assert token == "token-123"
     assert captured["subject"] == {"id": 7, "username": "alice"}
-
