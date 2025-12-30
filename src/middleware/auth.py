@@ -1,10 +1,16 @@
 import time
+from functools import lru_cache
 from typing import Any, Dict
 
-import jwt
-from fastapi import HTTPException, Request, FastAPI
+from fastapi import FastAPI, HTTPException, Request
+from jwt import PyJWT, PyJWTError
 
 from conf.config import JWT_ALGORITHM, JWT_EXPIRE_SECONDS, JWT_SECRET
+
+
+@lru_cache(maxsize=1)
+def _jwt() -> PyJWT:
+    return PyJWT()
 
 
 EXEMPT_PATHS: set[str] = set()
@@ -20,14 +26,14 @@ def exempt(path: str):
 def create_token(subject: Dict[str, Any]) -> str:
     now = int(time.time())
     payload = {"sub": subject, "iat": now, "exp": now + JWT_EXPIRE_SECONDS}
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    return _jwt().encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
 def verify_token(token: str) -> Dict[str, Any]:
     try:
-        decoded = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        decoded = _jwt().decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         return decoded
-    except jwt.PyJWTError:
+    except PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
