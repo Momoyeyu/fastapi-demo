@@ -2,6 +2,7 @@ import pytest
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.testclient import TestClient
 from middleware import auth
+from user import handler as user_handler
 from user.model import User
 
 
@@ -112,3 +113,79 @@ def test_get_username_can_parse_username_from_authorization_header_without_middl
     resp = client.get("/me", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
     assert resp.json() == {"username": "bob"}
+
+
+def test_user_whoami_returns_username_from_token():
+    auth.EXEMPT_PATHS.clear()
+    app = FastAPI()
+    app.include_router(user_handler.router)
+    auth.setup_jwt_middleware(app)
+    client = TestClient(app)
+
+    token = auth.create_token(User(id=1, username="alice", password="x"))
+    resp = client.get("/user/whoami", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    assert resp.json() == {"username": "alice"}
+
+
+def test_user_me_uses_get_username_to_fetch_profile(monkeypatch: pytest.MonkeyPatch):
+    auth.EXEMPT_PATHS.clear()
+    app = FastAPI()
+    app.include_router(user_handler.router)
+    auth.setup_jwt_middleware(app)
+    client = TestClient(app)
+
+    captured: dict[str, str] = {}
+
+    def _get_user_profile(username: str) -> User:
+        captured["username"] = username
+        return User(
+            id=1,
+            username=username,
+            password="x",
+            nickname="Alice",
+            email="alice@example.com",
+            avatar_url="https://example.com/a.png",
+            role="user",
+            is_active=True,
+        )
+
+    monkeypatch.setattr(user_handler.service, "get_user_profile", _get_user_profile, raising=True)
+
+    token = auth.create_token(User(id=1, username="alice", password="x"))
+    resp = client.get("/user/me", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    assert captured["username"] == "alice"
+    assert resp.json()["username"] == "alice"
+
+
+def test_user_me_patch_updates_profile(monkeypatch: pytest.MonkeyPatch):
+    auth.EXEMPT_PATHS.clear()
+    app = FastAPI()
+    app.include_router(user_handler.router)
+    auth.setup_jwt_middleware(app)
+    client = TestClient(app)
+
+    def _update_my_profile(username: str, *, nickname: str | None, email: str | None, avatar_url: str | None) -> User:
+        return User(
+            id=1,
+            username=username,
+            password="x",
+            nickname=nickname,
+            email=email,
+            avatar_url=avatar_url,
+            role="user",
+            is_active=True,
+        )
+
+    monkeypatch.setattr(user_handler.service, "update_my_profile", _update_my_profile, raising=True)
+
+    token = auth.create_token(User(id=1, username="alice", password="x"))
+    resp = client.patch(
+        "/user/me",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"nickname": "NewName"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["username"] == "alice"
+    assert resp.json()["nickname"] == "NewName"

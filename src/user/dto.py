@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel
 
 class UserRegisterRequest(BaseModel):
@@ -15,3 +17,22 @@ class UserLoginRequest(BaseModel):
 class UserLoginResponse(BaseModel):
     token: str
     token_type: str = "Bearer"
+
+
+class UserWhoAmIResponse(BaseModel):
+    username: str
+
+
+class UserProfileResponse(BaseModel):
+    username: str
+    nickname: Optional[str]
+    email: Optional[str]
+    avatar_url: Optional[str]
+    role: str
+    is_active: bool
+
+
+class UserProfileUpdateRequest(BaseModel):
+    nickname: Optional[str] = None
+    email: Optional[str] = None
+    avatar_url: Optional[str] = None
