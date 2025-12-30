@@ -19,9 +19,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-setup_jwt_middleware(app)
-
 app.include_router(user_router)
+
+setup_jwt_middleware(app)
 
 @app.get("/")
 async def root():

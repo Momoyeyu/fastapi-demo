@@ -1,9 +1,10 @@
 import time
 from functools import lru_cache
-from typing import Any, Dict
+from typing import Any, Callable, Dict, TypeVar
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
 from jwt import PyJWT, PyJWTError
 
 from common import erri
@@ -16,13 +17,24 @@ def _jwt() -> PyJWT:
 
 
 EXEMPT_PATHS: set[str] = set()
+_EXEMPT_ENDPOINT_ATTR = "__jwt_exempt__"
+
+TFunc = TypeVar("TFunc", bound=Callable[..., Any])
 
 
-def exempt(path: str):
-    def decorator(fn):
-        EXEMPT_PATHS.add(path)
-        return fn
-    return decorator
+def exempt(fn: TFunc) -> TFunc:
+    setattr(fn, _EXEMPT_ENDPOINT_ATTR, True)
+    return fn
+
+
+def _build_exempt_paths(app: FastAPI) -> set[str]:
+    paths: set[str] = set()
+    for route in list(getattr(app, "router").routes):
+        if not isinstance(route, APIRoute):
+            continue
+        if getattr(route.endpoint, _EXEMPT_ENDPOINT_ATTR, False):
+            paths.add(route.path)
+    return paths
 
 
 def create_token(subject: Dict[str, Any]) -> str:
@@ -40,6 +52,8 @@ def verify_token(token: str) -> Dict[str, Any]:
 
 
 def setup_jwt_middleware(app: FastAPI):
+    EXEMPT_PATHS.update(_build_exempt_paths(app))
+
     @app.middleware("http")
     async def jwt_middleware(request: Request, call_next):
         path = request.url.path

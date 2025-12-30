@@ -7,7 +7,7 @@ from middleware import auth
 
 router = APIRouter(prefix="/user", tags=["user"])
 
-@auth.exempt("/user/register")
+@auth.exempt
 @router.post("/register", response_model=dto.UserRegisterResponse)
 async def register(request: dto.UserRegisterRequest):
     try:
@@ -16,7 +16,7 @@ async def register(request: dto.UserRegisterRequest):
     except erri.BusinessError as e:
         raise HTTPException(status_code=e.status_code, detail=e.msg)
 
-@auth.exempt("/user/login")
+@auth.exempt
 @router.post("/login", response_model=dto.UserLoginResponse)
 async def login(request: dto.UserLoginRequest):
     try:
