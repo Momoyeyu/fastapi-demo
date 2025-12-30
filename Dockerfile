@@ -30,7 +30,6 @@ RUN python -m pip install -i "$PIP_INDEX_URL" --trusted-host "$PIP_TRUSTED_HOST"
     uv sync --frozen --no-dev
 
 COPY src ./src
-COPY test.sh ./test.sh
 COPY pipeline ./pipeline
 
 EXPOSE 8000
