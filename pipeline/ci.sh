@@ -18,6 +18,8 @@ uv sync --frozen
 
 uv run python -m compileall src
 
+uv run python -c "from conf.alembic_runner import upgrade_head; upgrade_head()"
+
 CI_CONFIG_PATH="${CI_CONFIG_PATH:-$ROOT_DIR/pipeline/ci.yml}"
 export ROOT_DIR CI_CONFIG_PATH
 

@@ -25,6 +25,17 @@ services:
       timeout: 3s
       retries: 12
 
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["bash", "-lc", "python -c 'from conf.alembic_runner import upgrade_head; upgrade_head()'"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db/fastapi-demo
+    depends_on:
+      db:
+        condition: service_healthy
+
   app:
     build:
       context: .
@@ -35,6 +46,8 @@ services:
       - "8000:8000"
     depends_on:
       gate:
+        condition: service_completed_successfully
+      migrate:
         condition: service_completed_successfully
       db:
         condition: service_healthy
