@@ -91,12 +91,12 @@ def test_login_user_success_creates_token(monkeypatch: pytest.MonkeyPatch):
 
     captured: dict[str, object] = {}
 
-    def _create_token(subject: dict):
-        captured["subject"] = subject
+    def _create_token(passed_user: object):
+        captured["user"] = passed_user
         return "token-123"
 
     monkeypatch.setattr(service.auth, "create_token", _create_token, raising=True)
 
     token = service.login_user("alice", "pw")
     assert token == "token-123"
-    assert captured["subject"] == {"id": 7, "username": "alice"}
+    assert captured["user"] is user

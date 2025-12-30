@@ -24,4 +24,4 @@ def login_user(username: str, password: str) -> str:
     encrypted_password = get_password_hash(password)
     if not user or user.password != encrypted_password or user.id is None:
         raise erri.unauthorized("Invalid credentials")
-    return auth.create_token({"id": user.id, "username": user.username})
+    return auth.create_token(user)

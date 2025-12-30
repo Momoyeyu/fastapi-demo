@@ -1,8 +1,8 @@
 import pytest
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.testclient import TestClient
-
 from middleware import auth
+from user.model import User
 
 
 def test_jwt_middleware_returns_401_when_missing_authorization_header():
@@ -80,3 +80,35 @@ def test_setup_jwt_middleware_freezes_route_registration():
         @app.get("/late")
         async def late():
             return {"ok": True}
+
+
+def test_get_username_returns_username_from_request_state_when_middleware_installed():
+    auth.EXEMPT_PATHS.clear()
+    app = FastAPI()
+
+    @app.get("/me")
+    async def me(request: Request):
+        return {"username": auth.get_username(request)}
+
+    auth.setup_jwt_middleware(app)
+    client = TestClient(app)
+
+    token = auth.create_token(User(id=1, username="alice", password="x"))
+    resp = client.get("/me", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    assert resp.json() == {"username": "alice"}
+
+
+def test_get_username_can_parse_username_from_authorization_header_without_middleware():
+    app = FastAPI()
+
+    @app.get("/me")
+    async def me(request: Request):
+        return {"username": auth.get_username(request)}
+
+    client = TestClient(app)
+
+    token = auth.create_token(User(id=2, username="bob", password="x"))
+    resp = client.get("/me", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    assert resp.json() == {"username": "bob"}

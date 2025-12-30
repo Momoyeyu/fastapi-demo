@@ -9,6 +9,7 @@ from jwt import PyJWT, PyJWTError
 
 from common import erri
 from conf.config import JWT_ALGORITHM, JWT_EXPIRE_SECONDS, JWT_SECRET
+from user.model import User
 
 
 @lru_cache(maxsize=1)
@@ -48,17 +49,17 @@ def _freeze_route_registration(app: FastAPI) -> None:
     def _blocked(*_: object, **__: object):
         raise RuntimeError("Routes are frozen. Register all routes before setup_jwt_middleware.")
 
-    app.include_router = _blocked  # type: ignore[method-assign]
-    app.add_api_route = _blocked  # type: ignore[method-assign]
-    app.add_route = _blocked  # type: ignore[method-assign]
-    app.mount = _blocked  # type: ignore[method-assign]
-    app.router.include_router = _blocked  # type: ignore[method-assign]
-    app.router.add_api_route = _blocked  # type: ignore[method-assign]
+    app.include_router = _blocked
+    app.add_api_route = _blocked
+    app.add_route = _blocked
+    app.mount = _blocked
+    app.router.include_router = _blocked
+    app.router.add_api_route = _blocked
 
 
-def create_token(subject: Dict[str, Any]) -> str:
+def create_token(user: User) -> str:
     now = int(time.time())
-    payload = {"sub": subject, "iat": now, "exp": now + JWT_EXPIRE_SECONDS}
+    payload = {"sub": user.username, "iat": now, "exp": now + JWT_EXPIRE_SECONDS}
     return _jwt().encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
@@ -68,6 +69,22 @@ def verify_token(token: str) -> Dict[str, Any]:
         return decoded
     except PyJWTError:
         raise erri.unauthorized("Invalid token")
+
+
+def get_username(request: Request) -> str:
+    state_user = getattr(request.state, "user", None)
+    if isinstance(state_user, str) and state_user:
+        return state_user
+
+    authorization = request.headers.get("Authorization")
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ", 1)[1]
+        payload = verify_token(token)
+        sub = payload.get("sub")
+        if isinstance(sub, str) and sub:
+            return sub
+
+    raise erri.unauthorized("Unauthorized")
 
 
 def setup_jwt_middleware(app: FastAPI):
