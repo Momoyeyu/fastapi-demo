@@ -1,3 +1,4 @@
+import pytest
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 
@@ -67,3 +68,15 @@ def test_jwt_middleware_allows_exempt_route_with_router_prefix():
     resp = client.get("/user/ping")
     assert resp.status_code == 200
     assert resp.json() == {"pong": True}
+
+
+def test_setup_jwt_middleware_freezes_route_registration():
+    auth.EXEMPT_PATHS.clear()
+    app = FastAPI()
+
+    auth.setup_jwt_middleware(app)
+
+    with pytest.raises(RuntimeError):
+        @app.get("/late")
+        async def late():
+            return {"ok": True}

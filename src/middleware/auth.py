@@ -18,6 +18,8 @@ def _jwt() -> PyJWT:
 
 EXEMPT_PATHS: set[str] = set()
 _EXEMPT_ENDPOINT_ATTR = "__jwt_exempt__"
+_ROUTES_FROZEN_ATTR = "__jwt_routes_frozen__"
+_SETUP_ATTR = "__jwt_middleware_installed__"
 
 TFunc = TypeVar("TFunc", bound=Callable[..., Any])
 
@@ -37,6 +39,23 @@ def _build_exempt_paths(app: FastAPI) -> set[str]:
     return paths
 
 
+def _freeze_route_registration(app: FastAPI) -> None:
+    if getattr(app, _ROUTES_FROZEN_ATTR, False):
+        return
+
+    setattr(app, _ROUTES_FROZEN_ATTR, True)
+
+    def _blocked(*_: object, **__: object):
+        raise RuntimeError("Routes are frozen. Register all routes before setup_jwt_middleware.")
+
+    app.include_router = _blocked  # type: ignore[method-assign]
+    app.add_api_route = _blocked  # type: ignore[method-assign]
+    app.add_route = _blocked  # type: ignore[method-assign]
+    app.mount = _blocked  # type: ignore[method-assign]
+    app.router.include_router = _blocked  # type: ignore[method-assign]
+    app.router.add_api_route = _blocked  # type: ignore[method-assign]
+
+
 def create_token(subject: Dict[str, Any]) -> str:
     now = int(time.time())
     payload = {"sub": subject, "iat": now, "exp": now + JWT_EXPIRE_SECONDS}
@@ -52,7 +71,12 @@ def verify_token(token: str) -> Dict[str, Any]:
 
 
 def setup_jwt_middleware(app: FastAPI):
+    if getattr(app, _SETUP_ATTR, False):
+        return
+
     EXEMPT_PATHS.update(_build_exempt_paths(app))
+    _freeze_route_registration(app)
+    setattr(app, _SETUP_ATTR, True)
 
     @app.middleware("http")
     async def jwt_middleware(request: Request, call_next):
