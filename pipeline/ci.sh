@@ -28,10 +28,7 @@ mkdir -p "$OUTPUT_DIR"
 
 export COVERAGE_FILE="$OUTPUT_DIR/.coverage"
 
-_COV_LINES=()
-while IFS= read -r _line; do
-  _COV_LINES+=("$_line")
-done < <(uv run python - <<'PY'
+_CONFIG_OUTPUT="$(uv run python - <<'PY'
 from __future__ import annotations
 
 import glob
@@ -91,7 +88,12 @@ print(threshold)
 for mod in modules:
     print(mod)
 PY
-)
+)"
+
+_COV_LINES=()
+while IFS= read -r _line; do
+  _COV_LINES+=("$_line")
+done <<< "$_CONFIG_OUTPUT"
 
 COVERAGE_THRESHOLD="${_COV_LINES[0]}"
 export COVERAGE_THRESHOLD
