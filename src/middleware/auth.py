@@ -103,13 +103,13 @@ def setup_jwt_middleware(app: FastAPI):
 
         auth = request.headers.get("Authorization")
         if not auth or not auth.startswith("Bearer "):
-            return JSONResponse(status_code=401, content={"msg": "Unauthorized"})
+            return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
         token = auth.split(" ", 1)[1]
         try:
             payload = verify_token(token)
         except erri.BusinessError as e:
-            return JSONResponse(status_code=e.status_code, content={"msg": e.msg})
+            return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
         except HTTPException as e:
-            return JSONResponse(status_code=e.status_code, content={"msg": e.detail})
+            return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
         request.state.user = payload.get("sub")
         return await call_next(request)

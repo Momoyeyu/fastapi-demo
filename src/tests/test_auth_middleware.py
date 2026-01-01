@@ -18,7 +18,7 @@ def test_jwt_middleware_returns_401_when_missing_authorization_header():
     client = TestClient(app)
     resp = client.get("/protected")
     assert resp.status_code == 401
-    assert resp.json() == {"msg": "Unauthorized"}
+    assert resp.json() == {"detail": "Unauthorized"}
 
 
 def test_jwt_middleware_returns_401_when_token_invalid():
@@ -33,7 +33,7 @@ def test_jwt_middleware_returns_401_when_token_invalid():
     client = TestClient(app)
     resp = client.get("/protected", headers={"Authorization": "Bearer not-a-jwt"})
     assert resp.status_code == 401
-    assert resp.json() == {"msg": "Invalid token"}
+    assert resp.json() == {"detail": "Invalid token"}
 
 
 def test_jwt_middleware_allows_exempt_route_without_authorization_header():
