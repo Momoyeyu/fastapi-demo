@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from alembic import command
+from alembic.command import upgrade
 from alembic.config import Config
 
 from conf.config import DATABASE_URL
@@ -17,4 +17,4 @@ def _alembic_config() -> Config:
 
 
 def upgrade_head() -> None:
-    command.upgrade(_alembic_config(), "head")
+    upgrade(_alembic_config(), "head")
